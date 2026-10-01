@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interaktyvių veiklų biblioteka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F5FB;
+    --surface: #FFFFFF;
+    --ink: #1E1B3A;
+    --muted: #625F7A;
+    --line: #ECE9F4;
+    --brand: #4B3BB8;        /* pagrindinė sąsajos spalva – indigo */
+    --brand-dark: #3A2C99;
+    --brand-soft: #EEECFB;
+    --focus: #FFB400;
+    --font: "Lexend", "Segoe UI", Roboto, Arial, sans-serif;
+
+    /* Kategorijų akcentai – naudojami tik paveikslėlio fonui ir mažam taškui */
+    --c-logika: #7C5CE0;
+    --c-kalba: #3B82D6;
+    --c-it: #1497A8;
+    --c-saugumas: #E0567A;
+    --c-di: #A855C9;
+    --c-kasdieniai: #3EA864;
+    --c-keliai: #EE8A2E;
+    --c-profesijos: #6E7891;
+    --c-kuryba: #F08C3A;
+    --c-muzika: #5B6EE8;
+    --c-kita: #8A90A2;
+  }
+
+  * { box-sizing: border-box; }
+  html { font-size: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.4; }
+  .wrap { width: calc(100% - 48px); max-width: 1750px; margin: 0 auto; }
+
+  /* ===== Viršutinė dalis ===== */
+  .top {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(124, 92, 224, .14), transparent 28%),
+      radial-gradient(circle at 100% 0%, rgba(20, 151, 168, .10), transparent 26%),
+      var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0 12px;
+  }
+  .top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 32px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: clamp(1.25rem, 2.2vw, 1.75rem); font-weight: 800; letter-spacing: .01em; line-height: 1.1; }
+  h1 small { display: block; margin-top: 4px; font-size: .85rem; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+  .search-wrap { display: flex; align-items: center; gap: 14px; flex: 0 1 560px; }
+  .search { position: relative; flex: 1; }
+  .search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
+  .search input {
+    width: 100%; font: inherit; font-size: 1rem;
+    padding: 11px 14px 11px 42px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: #F8F7FD; color: var(--ink);
+  }
+  .search input:focus { outline: 3px solid var(--focus); outline-offset: 1px; background: #fff; }
+  .status { margin: 0; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+
+  /* Filtrai: viena kompaktiška zona */
+  .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; margin-top: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips button {
+    font: inherit; font-size: .85rem; font-weight: 500;
+    min-height: 34px; padding: 5px 12px;
+    border-radius: 999px; border: 1px solid transparent;
+    background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .chips button .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot, var(--brand)); }
+  .chips button:hover { background: var(--brand-soft); }
+  .chips button[aria-pressed="true"] { background: var(--brand); color: #fff; font-weight: 700; }
+  .chips button[aria-pressed="true"] .dot { background: #fff; }
+
+  .levels { display: flex; align-items: center; gap: 4px; font-size: .85rem; }
+  .levels .label { color: var(--muted); margin-right: 4px; }
+  .levels button {
+    white-space: nowrap;
+    font: inherit; font-size: .85rem; min-height: 34px; padding: 5px 10px;
+    border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .levels button:hover { color: var(--ink); background: var(--brand-soft); }
+  .levels button[aria-pressed="true"] { color: var(--brand); font-weight: 700; background: var(--brand-soft); }
+  .levels .sep { color: #C9C5DA; }
+  button:focus-visible, .play:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* ===== Veiklų sąrašas ===== */
+  main { padding-top: 16px; padding-bottom: 40px; }
+  .list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+  @media (max-width: 1450px) { .list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 850px)  { .list { grid-template-columns: 1fr; } }
+
+  .item {
+    --acc: var(--c-kita);
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 86px;
+    padding: 9px 12px 9px 9px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(30, 27, 58, .04);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .item:hover { transform: translateY(-2px); border-color: #DDD8EE; box-shadow: 0 8px 22px rgba(30, 27, 58, .09); }
+  .item[data-main="logika"]     { --acc: var(--c-logika); }
+  .item[data-main="kalba"]      { --acc: var(--c-kalba); }
+  .item[data-main="it"]         { --acc: var(--c-it); }
+  .item[data-main="saugumas"]   { --acc: var(--c-saugumas); }
+  .item[data-main="di"]         { --acc: var(--c-di); }
+  .item[data-main="kasdieniai"] { --acc: var(--c-kasdieniai); }
+  .item[data-main="keliai"]     { --acc: var(--c-keliai); }
+  .item[data-main="profesijos"] { --acc: var(--c-profesijos); }
+  .item[data-main="kuryba"]     { --acc: var(--c-kuryba); }
+  .item[data-main="muzika"]     { --acc: var(--c-muzika); }
+
+  .thumb {
+    position: relative; width: 82px; height: 68px; border-radius: 11px; overflow: hidden;
+    background: linear-gradient(140deg, color-mix(in srgb, var(--acc) 10%, #fff), color-mix(in srgb, var(--acc) 24%, #fff));
+  }
+  .thumb svg, .thumb .cover { position: absolute; inset: 0; width: 100%; height: 100%; transition: transform .3s ease; }
+  .thumb .cover { object-fit: cover; z-index: 1; }
+  .thumb svg text { font-family: var(--font); font-weight: 800; }
+  .item:hover .thumb svg, .item:hover .thumb .cover { transform: scale(1.08); }
+
+  .info { min-width: 0; }
+  .info h2 { margin: 0 0 3px; font-size: .98rem; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .desc { margin: 0; font-size: .84rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta { margin: 5px 0 0; font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .sep { color: #C9C5DA; margin: 0 2px; }
+  .meta .lvl { white-space: nowrap; }
+  .meta .lvl b { color: var(--acc); letter-spacing: 1px; font-weight: 400; }
+  .meta .flag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 5px; background: #F2F1F7; font-size: .7rem; font-weight: 700; color: var(--muted); }
+
+  .play {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 38px; padding: 0 14px; border-radius: 10px;
+    background: var(--brand-soft); color: var(--brand);
+    font-size: .82rem; font-weight: 700; letter-spacing: .06em;
+    text-decoration: none; white-space: nowrap;
+    transition: background .18s ease, color .18s ease;
+  }
+  .play .arrow { font-size: 1.15rem; line-height: 1; transition: transform .18s ease; }
+  .item:hover .play, .play:hover { background: var(--brand); color: #fff; }
+  .item:hover .play .arrow { transform: translateX(3px); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .item.in { animation: rise .3s ease both; animation-delay: var(--d, 0ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .empty { display: none; background: var(--surface); border: 1px dashed #D6D1E8; border-radius: 14px; padding: 28px; text-align: center; }
+  .empty button { font: inherit; font-weight: 700; margin-top: 10px; height: 40px; padding: 0 18px; border-radius: 10px; border: 0; background: var(--brand); color: #fff; cursor: pointer; }
+
+  footer { border-top: 1px solid var(--line); padding: 16px 0 28px; color: var(--muted); font-size: .85rem; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 700px) {
+    .wrap { width: calc(100% - 24px); }
+    .search-wrap { flex-basis: 100%; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; max-width: 100%; }
+    .filters { gap: 6px; }
+    .levels { overflow-x: auto; max-width: 100%; padding-bottom: 2px; }
+    .search { min-width: 0; }
+    .status { font-size: .72rem; }
+    .meta { white-space: normal; }
+    .item { grid-template-columns: 64px minmax(0, 1fr) auto; gap: 10px; }
+    .thumb { width: 64px; height: 56px; }
+    .info h2 { white-space: normal; }
+    .desc { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .play { padding: 0 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <h1>INTERAKTYVIŲ VEIKLŲ BIBLIOTEKA<small>Pasirink veiklą, perskaityk aprašymą ir spausk „ŽAISTI“.</small></h1>
+      <div class="search-wrap">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="q" type="search" placeholder="Ieškoti žaidimo..." autocomplete="off" aria-label="Ieškoti žaidimo">
+        </div>
+        <p class="status" id="status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <div class="filters">
+      <ul class="chips" id="cats" aria-label="Temos">
+        <li><button type="button" data-cat="visos" aria-pressed="true">Visos</button></li>
+        <li><button type="button" data-cat="logika" aria-pressed="false" style="--dot: var(--c-logika)"><span class="dot"></span>Atmintis ir logika</button></li>
+        <li><button type="button" data-cat="kalba" aria-pressed="false" style="--dot: var(--c-kalba)"><span class="dot"></span>Kalba</button></li>
+        <li><button type="button" data-cat="it" aria-pressed="false" style="--dot: var(--c-it)"><span class="dot"></span>IT ir skaitmeninis pasaulis</button></li>
+        <li><button type="button" data-cat="saugumas" aria-pressed="false" style="--dot: var(--c-saugumas)"><span class="dot"></span>Saugumas internete</button></li>
+        <li><button type="button" data-cat="di" aria-pressed="false" style="--dot: var(--c-di)"><span class="dot"></span>Dirbtinis intelektas</button></li>
+        <li><button type="button" data-cat="kasdieniai" aria-pressed="false" style="--dot: var(--c-kasdieniai)"><span class="dot"></span>Kasdieniai įgūdžiai</button></li>
+        <li><button type="button" data-cat="keliai" aria-pressed="false" style="--dot: var(--c-keliai)"><span class="dot"></span>Kelio ženklai</button></li>
+        <li><button type="button" data-cat="profesijos" aria-pressed="false" style="--dot: var(--c-profesijos)"><span class="dot"></span>Profesijos ir karjera</button></li>
+        <li><button type="button" data-cat="kuryba" aria-pressed="false" style="--dot: var(--c-kuryba)"><span class="dot"></span>Kūryba</button></li>
+        <li><button type="button" data-cat="muzika" aria-pressed="false" style="--dot: var(--c-muzika)"><span class="dot"></span>Muzika</button></li>
+      </ul>
+
+      <div class="levels" id="levels" role="group" aria-label="Sudėtingumas">
+        <span class="label">Lygis:</span>
+        <button type="button" data-level="visi" aria-pressed="true">Visi</button><span class="sep">·</span>
+        <button type="button" data-level="1" aria-pressed="false">● Lengva</button><span class="sep">·</span>
+        <button type="button" data-level="2" aria-pressed="false">●● Vidutinė</button><span class="sep">·</span>
+        <button type="button" data-level="3" aria-pressed="false">●●● Stipresniems</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="list" id="list">
+
+<!-- =====================================================================
+     KAIP PAKEISTI PAVEIKSLĖLĮ
+     1. Šalia index.html sukurkite aplanką „images“.
+     2. Įkelkite failą tokiu pavadinimu, koks nurodytas veiklos
+        <img class="cover" src="images/..."> eilutėje.
+        Pvz.: images/22-saugumas-internete.webp
+     3. Jei failas JPG ar PNG – pakeiskite galūnę src eilutėje.
+     Kol failo nėra, rodoma įtaisyta iliustracija.
+     Ženkliukas „🔑“ reiškia: gali reikėti prisijungti.
+     Rekomenduojamas dydis: 240 × 200 px (rodoma 82 × 68 px).
+
+     KAIP PRIDĖTI NAUJĄ VEIKLĄ
+     Nukopijuokite vieną <article> ... </article> bloką ir pakeiskite:
+     data-cat   – temos per tarpą: logika kalba it saugumas di kasdieniai keliai profesijos kuryba muzika
+     data-main  – viena pagrindinė tema (nuo jos priklauso spalva)
+     data-level – 1 (Lengva), 2 (Vidutinė), 3 (Stipresniems)
+     Lygio žymą (●, ●●, ●●●) pakeiskite ir <span class="lvl"> vietoje.
+     Angliškai veiklai pridėkite: <span class="flag">EN</span>
+     Rodomos tik 2 pirmos žymos; kitos lieka paieškai (paslėptame <span class="sr">).
+     ===================================================================== -->
+
+    <!-- 1. Atminties žaidimas -->
+    <article class="item" data-cat="logika kalba" data-main="logika" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/01-atminties-zaidimas.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="rotate(-10 95 115)"><rect x="60" y="65" width="70" height="94" rx="12" fill="#7446C7"/><text x="95" y="126" font-size="40" fill="#fff" text-anchor="middle">?</text></g>
+          <g class="pop"><rect x="125" y="52" width="70" height="94" rx="12" fill="#fff" stroke="#7446C7" stroke-width="3"/><circle cx="160" cy="104" r="20" fill="#8BC34A"/><rect x="157" y="74" width="6" height="12" rx="3" fill="#6B4A2B"/><ellipse cx="170" cy="80" rx="8" ry="4" fill="#4CAF50"/></g>
+          <g transform="rotate(10 225 115)"><rect x="190" y="65" width="70" height="94" rx="12" fill="#fff" stroke="#7446C7" stroke-width="3"/><circle cx="225" cy="117" r="20" fill="#8BC34A"/><rect x="222" y="87" width="6" height="12" rx="3" fill="#6B4A2B"/><ellipse cx="235" cy="93" rx="8" ry="4" fill="#4CAF50"/></g>
+          <circle cx="268" cy="58" r="17" fill="#1B7A5E"/><path d="M259 58l6 6 11-13" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Atminties žaidimas</h2>
+        <p class="desc" title="Apversk korteles ir surask poras.">Apversk korteles ir surask poras.</p>
+        <p class="meta">🧠 Atmintis <span class="sep">·</span> 🔤 Žodžiai <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/16075389/atminties-žaidimas" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 2. Atminties žaidimas „Raidės“ -->
+    <article class="item" data-cat="logika kalba" data-main="kalba" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/02-atmintis-raides.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="rotate(-8 95 115)"><rect x="60" y="65" width="70" height="94" rx="12" fill="#3B5BDB"/><text x="95" y="126" font-size="40" fill="#fff" text-anchor="middle">?</text></g>
+          <g class="pop"><rect x="125" y="50" width="70" height="94" rx="12" fill="#fff" stroke="#3B5BDB" stroke-width="3"/><text x="160" y="114" font-size="50" fill="#E8590C" text-anchor="middle">Š</text></g>
+          <g transform="rotate(9 225 115)"><rect x="190" y="65" width="70" height="94" rx="12" fill="#fff" stroke="#3B5BDB" stroke-width="3"/><text x="225" y="129" font-size="50" fill="#E8590C" text-anchor="middle">Š</text></g>
+          <text x="40" y="200" font-size="28" fill="#3B5BDB" opacity=".35">A</text><text x="270" y="205" font-size="24" fill="#3B5BDB" opacity=".35">Ž</text><text x="280" y="50" font-size="22" fill="#3B5BDB" opacity=".35">Ė</text>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Atminties žaidimas „Raidės“</h2>
+        <p class="desc" title="Surask dvi vienodas raides.">Surask dvi vienodas raides.</p>
+        <p class="meta">🧠 Atmintis <span class="sep">·</span> 🔤 Raidės <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/23295842/atminties-žaidimas-raidės" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 3. Sekos atmintis -->
+    <!-- PATIKRINTI APRAŠYMĄ: svetainė neleidžia automatinės peržiūros. Aprašymas sudarytas tik pagal nuorodos pavadinimą („sekos atmintis“). -->
+    <article class="item" data-cat="logika" data-main="logika" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/03-sekos-atmintis.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="100" y="36" width="56" height="56" rx="14" fill="#F06595"/>
+          <rect class="pop" x="164" y="36" width="56" height="56" rx="14" fill="#FFD43B" stroke="#fff" stroke-width="5"/>
+          <rect x="100" y="100" width="56" height="56" rx="14" fill="#4DABF7"/>
+          <rect x="164" y="100" width="56" height="56" rx="14" fill="#51CF66"/>
+          <circle cx="192" cy="64" r="11" fill="#fff"/><text x="192" y="69" font-size="14" fill="#7446C7" text-anchor="middle">1</text>
+          <circle cx="128" cy="128" r="11" fill="#fff"/><text x="128" y="133" font-size="14" fill="#7446C7" text-anchor="middle">2</text>
+          <circle cx="192" cy="128" r="11" fill="#fff"/><text x="192" y="133" font-size="14" fill="#7446C7" text-anchor="middle">3</text>
+          <g transform="translate(96 176)"><circle cx="8" cy="8" r="8" fill="#FFD43B"/><path d="M22 8h14" stroke="#7446C7" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="8" r="8" fill="#4DABF7"/><path d="M64 8h14" stroke="#7446C7" stroke-width="3" stroke-linecap="round"/><circle cx="92" cy="8" r="8" fill="#51CF66"/><path d="M106 8h14" stroke="#7446C7" stroke-width="3" stroke-linecap="round"/><text x="128" y="14" font-size="18" fill="#7446C7">?</text></g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Sekos atmintis</h2>
+        <p class="desc" title="Įsimink seką ir pakartok ją.">Įsimink seką ir pakartok ją.</p>
+        <p class="meta">🧠 Atmintis <span class="sep">·</span> 🧩 Logika <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://vaikukampelis.lt/zaidimai/logika/sekos-atmintis/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 4. Atmintis -->
+    <!-- PATIKRINTI APRAŠYMĄ: svetainė neleidžia automatinės peržiūros. Aprašymas sudarytas tik pagal nuorodos pavadinimą („atmintis“). -->
+    <article class="item" data-cat="logika" data-main="logika" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/04-atmintis.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g fill="#1B7A5E">
+            <rect x="72" y="40" width="48" height="60" rx="10"/><rect x="186" y="40" width="48" height="60" rx="10"/>
+            <rect x="129" y="112" width="48" height="60" rx="10"/><rect x="243" y="112" width="48" height="60" rx="10" opacity=".55"/>
+          </g>
+          <g class="pop"><rect x="129" y="40" width="48" height="60" rx="10" fill="#fff" stroke="#1B7A5E" stroke-width="3"/><path d="M153 56l14 26h-28z" fill="#FF922B"/></g>
+          <rect x="72" y="112" width="48" height="60" rx="10" fill="#fff" stroke="#1B7A5E" stroke-width="3"/><path d="M96 128l14 26h-28z" fill="#FF922B"/>
+          <rect x="186" y="112" width="48" height="60" rx="10" fill="#fff" stroke="#1B7A5E" stroke-width="3"/><circle cx="210" cy="142" r="13" fill="#4DABF7"/>
+          <rect x="15" y="112" width="48" height="60" rx="10" fill="#1B7A5E" opacity=".55"/>
+          <path d="M96 106c20 8 40 8 57 0" stroke="#FF922B" stroke-width="3" stroke-dasharray="5 6" fill="none"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Atmintis</h2>
+        <p class="desc" title="Lavink atmintį.">Lavink atmintį.</p>
+        <p class="meta">🧠 Atmintis <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://vaikukampelis.lt/zaidimai/logika/atmintis/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 5. Clickaroo -->
+    <!-- PASTABA: svetainė skirta mažiems vaikams (pačios svetainės nurodymu). Galima rinktis lietuvių arba anglų kalbą. -->
+    <article class="item" data-cat="kalba it" data-main="it" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/05-clickaroo.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="34" y="98" width="252" height="96" rx="16" fill="#1C2B3A"/>
+          <g fill="#2E4458">
+            <rect x="48" y="112" width="34" height="32" rx="7"/><rect x="88" y="112" width="34" height="32" rx="7"/><rect x="128" y="112" width="34" height="32" rx="7"/><rect x="208" y="112" width="34" height="32" rx="7"/><rect x="248" y="112" width="26" height="32" rx="7"/>
+            <rect x="48" y="150" width="34" height="32" rx="7"/><rect x="88" y="150" width="140" height="32" rx="7"/><rect x="234" y="150" width="40" height="32" rx="7"/>
+          </g>
+          <g class="pop"><rect x="168" y="108" width="34" height="36" rx="7" fill="#FFD43B"/><text x="185" y="134" font-size="20" fill="#1C2B3A" text-anchor="middle">Ž</text></g>
+          <text x="65" y="135" font-size="15" fill="#fff" text-anchor="middle">A</text><text x="105" y="135" font-size="15" fill="#fff" text-anchor="middle">B</text><text x="145" y="135" font-size="15" fill="#fff" text-anchor="middle">C</text><text x="225" y="135" font-size="15" fill="#fff" text-anchor="middle">Š</text>
+          <text x="92" y="72" font-size="44" fill="#17709A">A</text><text x="140" y="60" font-size="34" fill="#E8590C">b</text><text x="232" y="80" font-size="40" fill="#7446C7">Ą</text>
+          <path d="M196 30l0 42 11-10 8 18 7-3-8-17 15-1z" fill="#fff" stroke="#1C2B3A" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M186 24l-7-7M196 18v-9M206 24l7-7" stroke="#17709A" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Clickaroo</h2>
+        <p class="desc" title="Spausk klavišus ir rask raides.">Spausk klavišus ir rask raides.</p>
+        <p class="meta">🔤 Raidės <span class="sep">·</span> ⌨️ Klaviatūra <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://clickaroo.net/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 6. Raidės ir skaitymas -->
+    <!-- PATIKRINTI: puslapyje aprašoma „Dino mokyklėlė“ programėlė (3–7 m. vaikams). Nepatvirtinta, ar žaidimus galima žaisti naršyklėje be programėlės įdiegimo. -->
+    <article class="item" data-cat="kalba" data-main="kalba" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/06-raides-skaitymas.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="rotate(-8 90 80)"><rect x="56" y="42" width="70" height="76" rx="16" fill="#3B5BDB"/><text x="91" y="100" font-size="50" fill="#fff" text-anchor="middle">Ą</text></g>
+          <g class="pop"><rect x="126" y="30" width="70" height="76" rx="16" fill="#FF922B"/><text x="161" y="88" font-size="50" fill="#fff" text-anchor="middle">Ž</text></g>
+          <g transform="rotate(9 230 80)"><rect x="196" y="42" width="70" height="76" rx="16" fill="#12B886"/><text x="231" y="100" font-size="50" fill="#fff" text-anchor="middle">Ė</text></g>
+          <rect x="70" y="146" width="62" height="42" rx="21" fill="#fff"/><text x="101" y="175" font-size="20" fill="#3B5BDB" text-anchor="middle">BA</text>
+          <text x="148" y="176" font-size="24" fill="#3B5BDB" text-anchor="middle">+</text>
+          <rect x="164" y="146" width="74" height="42" rx="21" fill="#fff"/><text x="201" y="175" font-size="20" fill="#3B5BDB" text-anchor="middle">TAS</text>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Raidės ir skaitymas</h2>
+        <p class="desc" title="Rask raidę ir sudėk žodį.">Rask raidę ir sudėk žodį.</p>
+        <p class="meta">🔤 Raidės <span class="sep">·</span> 📖 Skaitymas <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://dinomoki.com/lt/raides" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 7. Barbora Radvilaitė. Kalbos turtai -->
+    <!-- PASTABA: jei nėra garso, reikia paliesti žaidimo langą. Žaidimo aprašymo puslapis: https://zaidimai.lki.lt/barbora-kalbos-turtai/ -->
+    <article class="item" data-cat="kalba" data-main="kalba" data-level="3">
+      <div class="thumb">
+        <img class="cover" src="images/07-kalbos-turtai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g fill="#3B5BDB" opacity=".28">
+            <rect x="10" y="130" width="40" height="90"/><path d="M10 130l20-30 20 30z"/>
+            <rect x="56" y="150" width="50" height="70"/><rect x="236" y="120" width="30" height="100"/><path d="M236 120l15-40 15 40z"/>
+            <rect x="270" y="150" width="50" height="70"/><rect x="200" y="160" width="36" height="60"/>
+          </g>
+          <path d="M160 176 Q128 162 92 172 V102 Q128 92 160 106 Z" fill="#fff" stroke="#3B5BDB" stroke-width="3"/>
+          <path d="M160 176 Q192 162 228 172 V102 Q192 92 160 106 Z" fill="#fff" stroke="#3B5BDB" stroke-width="3"/>
+          <g stroke="#C3D0FF" stroke-width="3" stroke-linecap="round"><path d="M104 120h44M104 134h44M104 148h34M172 120h44M172 134h44M172 148h30"/></g>
+          <g class="pop"><text x="124" y="72" font-size="30" fill="#E8590C">Ž</text><text x="160" y="52" font-size="24" fill="#3B5BDB">ą</text><text x="188" y="78" font-size="28" fill="#7446C7">Ū</text></g>
+          <path d="M260 40l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#FFD43B"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Barbora Radvilaitė. Kalbos turtai</h2>
+        <p class="desc" title="Spręsk užduotis apie lietuviškus žodžius.">Spręsk užduotis apie lietuviškus žodžius.</p>
+        <p class="meta">🔤 Žodžiai <span class="sep">·</span> 📖 Skaitymas <span class="sep">·</span> <span class="lvl"><b>●●●</b> Stipresniems</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://zaidimai.lki.lt/barbora-kalbos-turtai/zaisti/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 8. Neužkibk -->
+    <!-- PATIKRINTI APRAŠYMĄ: svetainė neleidžia automatinės peržiūros. Tema nustatyta tik pagal pavadinimą „Neužkibk“. -->
+    <article class="item" data-cat="saugumas" data-main="saugumas" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/08-neuzkibk.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="112" y="28" width="96" height="176" rx="18" fill="#2B2238"/>
+          <rect x="120" y="44" width="80" height="144" rx="8" fill="#fff"/>
+          <g class="pop"><rect x="126" y="62" width="68" height="46" rx="10" fill="#FFE1DE"/><circle cx="142" cy="85" r="10" fill="#C13B3B"/><text x="142" y="91" font-size="15" fill="#fff" text-anchor="middle">!</text><path d="M158 78h28M158 90h20" stroke="#C13B3B" stroke-width="4" stroke-linecap="round"/></g>
+          <rect x="126" y="118" width="68" height="18" rx="9" fill="#C13B3B"/><text x="160" y="131" font-size="10" fill="#fff" text-anchor="middle">LAIMĖJAI!</text>
+          <path d="M254 24v76a20 20 0 1 1-40 0" stroke="#5B5A70" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M214 100l-8-10" stroke="#5B5A70" stroke-width="6" stroke-linecap="round"/>
+          <path d="M60 70l32-12 32 12v26c0 24-16 38-32 44-16-6-32-20-32-44z" fill="#1B7A5E"/><path d="M78 96l10 10 18-20" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Neužkibk</h2>
+        <p class="desc" title="Žaidimas apie saugumą internete.">Žaidimas apie saugumą internete.</p>
+        <p class="meta">🔐 Saugumas <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://neuzkibk.lt/zaidimas/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 9. Two Truths & AI -->
+    <article class="item" data-cat="saugumas di" data-main="di" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/09-two-truths-ai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="rotate(-6 80 110)"><rect x="46" y="54" width="68" height="100" rx="8" fill="#fff"/><rect x="54" y="62" width="52" height="58" rx="4" fill="#74C0FC"/><circle cx="80" cy="84" r="12" fill="#FFD43B"/><path d="M54 120l20-18 14 12 18-16v22z" fill="#2F9E44"/><path d="M58 132h44M62 142h36" stroke="#CED4DA" stroke-width="4" stroke-linecap="round"/></g>
+          <g transform="rotate(6 240 110)"><rect x="206" y="54" width="68" height="100" rx="8" fill="#fff"/><rect x="214" y="62" width="52" height="58" rx="4" fill="#FFA8A8"/><circle cx="240" cy="94" r="16" fill="#C92A2A"/><path d="M218 132h44M222 142h36" stroke="#CED4DA" stroke-width="4" stroke-linecap="round"/></g>
+          <g class="pop">
+            <rect x="118" y="38" width="84" height="124" rx="10" fill="#fff" stroke="#C13B3B" stroke-width="4"/>
+            <rect x="136" y="72" width="48" height="40" rx="10" fill="#2B2238"/><circle cx="150" cy="92" r="6" fill="#66D9E8"/><circle cx="170" cy="92" r="6" fill="#66D9E8"/>
+            <path d="M160 72v-12" stroke="#2B2238" stroke-width="4"/><circle cx="160" cy="56" r="5" fill="#C13B3B"/>
+            <rect x="140" y="124" width="40" height="18" rx="9" fill="#C13B3B"/><text x="160" y="137" font-size="12" fill="#fff" text-anchor="middle">DI</text>
+          </g>
+          <circle cx="200" cy="40" r="16" fill="#FFD43B"/><text x="200" y="47" font-size="20" fill="#2B2238" text-anchor="middle">?</text>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Two Truths &amp; AI</h2>
+        <p class="desc" title="Spausk „Play the game!“ ir surask DI sukurtą plakatą.">Spausk „Play the game!“ ir surask DI sukurtą plakatą.</p>
+        <p class="meta">🤖 DI <span class="sep">·</span> 👁 Atidumas <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://www.commonsense.org/two-truths-and-ai" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 10. Kasininko simuliatorius -->
+    <article class="item" data-cat="kasdieniai" data-main="kasdieniai" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/10-kasininkas.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="70" y="112" width="150" height="80" rx="12" fill="#3D5A1E"/>
+          <rect x="84" y="126" width="122" height="14" rx="4" fill="#5C7F33"/>
+          <g fill="#CDE9AC"><rect x="90" y="150" width="22" height="14" rx="3"/><rect x="118" y="150" width="22" height="14" rx="3"/><rect x="146" y="150" width="22" height="14" rx="3"/><rect x="90" y="170" width="22" height="14" rx="3"/><rect x="118" y="170" width="22" height="14" rx="3"/><rect x="146" y="170" width="22" height="14" rx="3"/></g>
+          <rect x="176" y="150" width="30" height="34" rx="4" fill="#FFD43B"/>
+          <g class="pop"><rect x="92" y="54" width="106" height="50" rx="10" fill="#1C1B2E"/><text x="145" y="87" font-size="22" fill="#8CE99A" text-anchor="middle">12,50 €</text></g>
+          <path d="M140 104v8" stroke="#1C1B2E" stroke-width="6"/>
+          <circle cx="248" cy="168" r="18" fill="#FAB005" stroke="#E67700" stroke-width="3"/><text x="248" y="175" font-size="16" fill="#8A4B00" text-anchor="middle">€</text>
+          <circle cx="272" cy="186" r="14" fill="#CED4DA" stroke="#868E96" stroke-width="3"/>
+          <g transform="rotate(-12 262 90)"><rect x="232" y="72" width="64" height="36" rx="5" fill="#8CE99A" stroke="#2F9E44" stroke-width="3"/><circle cx="264" cy="90" r="9" fill="none" stroke="#2F9E44" stroke-width="3"/></g>
+          <path d="M24 120h36l-6 36H32z" fill="#FF922B"/><circle cx="36" cy="164" r="5" fill="#1C1B2E"/><circle cx="52" cy="164" r="5" fill="#1C1B2E"/><circle cx="36" cy="112" r="10" fill="#E03131"/><rect x="44" y="100" width="12" height="20" rx="3" fill="#4DABF7"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Kasininko simuliatorius</h2>
+        <p class="desc" title="Suskaičiuok pirkinius ir atiduok grąžą.">Suskaičiuok pirkinius ir atiduok grąžą.</p>
+        <p class="meta">💶 Pinigai <span class="sep">·</span> 🧮 Skaičiavimas <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://www.culinaryschools.org/kids-games/cashier-simulator/game.php" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 11. Brush Ninja -->
+    <article class="item" data-cat="kuryba" data-main="kuryba" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/11-brush-ninja.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="20" y="60" width="280" height="100" rx="8" fill="#2B2238"/>
+          <g fill="#FFEACC"><rect x="30" y="66" width="10" height="8" rx="2"/><rect x="60" y="66" width="10" height="8" rx="2"/><rect x="90" y="66" width="10" height="8" rx="2"/><rect x="120" y="66" width="10" height="8" rx="2"/><rect x="150" y="66" width="10" height="8" rx="2"/><rect x="180" y="66" width="10" height="8" rx="2"/><rect x="210" y="66" width="10" height="8" rx="2"/><rect x="240" y="66" width="10" height="8" rx="2"/><rect x="270" y="66" width="10" height="8" rx="2"/>
+          <rect x="30" y="146" width="10" height="8" rx="2"/><rect x="60" y="146" width="10" height="8" rx="2"/><rect x="90" y="146" width="10" height="8" rx="2"/><rect x="120" y="146" width="10" height="8" rx="2"/><rect x="150" y="146" width="10" height="8" rx="2"/><rect x="180" y="146" width="10" height="8" rx="2"/><rect x="210" y="146" width="10" height="8" rx="2"/><rect x="240" y="146" width="10" height="8" rx="2"/><rect x="270" y="146" width="10" height="8" rx="2"/></g>
+          <g fill="#fff"><rect x="32" y="80" width="78" height="60" rx="4"/><rect x="121" y="80" width="78" height="60" rx="4"/><rect x="210" y="80" width="78" height="60" rx="4"/></g>
+          <circle cx="56" cy="96" r="10" fill="#FF922B"/><path d="M40 132h60" stroke="#CED4DA" stroke-width="3"/>
+          <circle cx="160" cy="112" r="10" fill="#FF922B"/><path d="M129 132h60" stroke="#CED4DA" stroke-width="3"/>
+          <g class="pop"><ellipse cx="262" cy="126" rx="13" ry="7" fill="#FF922B"/><path d="M234 118h-12M238 108h-10" stroke="#FFC078" stroke-width="3" stroke-linecap="round"/></g>
+          <g transform="rotate(35 250 40)"><rect x="244" y="4" width="12" height="60" rx="5" fill="#B8631A"/><rect x="242" y="60" width="16" height="10" fill="#ADB5BD"/><path d="M242 70h16l-8 22z" fill="#C2255C"/></g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Brush Ninja</h2>
+        <p class="desc" title="Nupiešk kadrus ir sukurk animaciją.">Nupiešk kadrus ir sukurk animaciją.</p>
+        <p class="meta">🎨 Piešimas <span class="sep">·</span> 🎞 Animacija <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://brush.ninja/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 12. Silk -->
+    <article class="item" data-cat="kuryba" data-main="kuryba" data-level="1">
+      <div class="thumb" style="background: radial-gradient(circle at 50% 50%, #3A2466 0%, #1A1333 75%);">
+        <img class="cover" src="images/12-silk.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g fill="none" stroke-width="2.5" stroke-linecap="round" transform="translate(160 110)">
+            <g class="pop">
+              <ellipse rx="92" ry="20" stroke="#FF8CC6" opacity=".9"/>
+              <ellipse rx="92" ry="20" stroke="#8CE0FF" opacity=".9" transform="rotate(30)"/>
+              <ellipse rx="92" ry="20" stroke="#B197FC" opacity=".9" transform="rotate(60)"/>
+              <ellipse rx="92" ry="20" stroke="#FFD08C" opacity=".9" transform="rotate(90)"/>
+              <ellipse rx="92" ry="20" stroke="#8CFFC1" opacity=".9" transform="rotate(120)"/>
+              <ellipse rx="92" ry="20" stroke="#FF8C8C" opacity=".9" transform="rotate(150)"/>
+            </g>
+            <ellipse rx="56" ry="10" stroke="#fff" opacity=".6"/>
+            <ellipse rx="56" ry="10" stroke="#fff" opacity=".6" transform="rotate(60)"/>
+            <ellipse rx="56" ry="10" stroke="#fff" opacity=".6" transform="rotate(120)"/>
+          </g>
+          <circle cx="160" cy="110" r="10" fill="#fff" opacity=".85"/>
+          <circle cx="160" cy="110" r="26" fill="#fff" opacity=".12"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Silk</h2>
+        <p class="desc" title="Vesk pelę ir kurk šviesos raštus.">Vesk pelę ir kurk šviesos raštus.</p>
+        <p class="meta">🎨 Kūryba <span class="sep">·</span> 🖱 Pelė <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://weavesilk.com/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 13. AutoDraw -->
+    <article class="item" data-cat="kuryba di" data-main="kuryba" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/13-autodraw.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="30" y="50" width="110" height="120" rx="14" fill="#fff"/>
+          <path d="M85 72l10 28 28 2-22 17 9 28-25-17-23 16 8-27-22-17 29-3z" fill="none" stroke="#868E96" stroke-width="3" stroke-dasharray="1 0" stroke-linejoin="round" transform="rotate(4 85 110)"/>
+          <path d="M150 110h26" stroke="#C23A6B" stroke-width="5" stroke-linecap="round"/><path d="M170 100l12 10-12 10" stroke="#C23A6B" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <g class="pop"><rect x="190" y="50" width="110" height="120" rx="14" fill="#fff"/><path d="M245 70l11 30 32 2-25 19 9 31-27-18-27 18 9-31-25-19 32-2z" fill="#FFD43B" stroke="#F08C00" stroke-width="3" stroke-linejoin="round"/></g>
+          <path d="M290 34l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#C23A6B"/><text x="268" y="206" font-size="16" fill="#C23A6B">DI</text>
+          <g transform="rotate(-40 60 180)"><rect x="30" y="172" width="70" height="14" rx="4" fill="#FF922B"/><path d="M100 172l16 7-16 7z" fill="#FFE8CC"/><rect x="24" y="172" width="10" height="14" rx="3" fill="#F783AC"/></g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>AutoDraw</h2>
+        <p class="desc" title="Piešk pele, o DI pasiūlys tvarkingą piešinį.">Piešk pele, o DI pasiūlys tvarkingą piešinį.</p>
+        <p class="meta">✏️ Piešimas <span class="sep">·</span> 🤖 DI <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://www.autodraw.com/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 14. Spalvinimo knyga -->
+    <!-- PASTABA: svetainėje daug nuorodų į kitus žaidimus, tarp jų šaudymo ir zombių. -->
+    <article class="item" data-cat="kuryba" data-main="kuryba" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/14-spalvinimas.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="translate(130 110)" stroke="#5B3A12" stroke-width="2">
+            <g class="pop">
+              <ellipse rx="22" ry="62" fill="#FF922B"/>
+              <ellipse rx="22" ry="62" fill="#fff" transform="rotate(45)"/>
+              <ellipse rx="22" ry="62" fill="#4DABF7" transform="rotate(90)"/>
+              <ellipse rx="22" ry="62" fill="#fff" transform="rotate(135)"/>
+            </g>
+            <circle r="34" fill="#FFD43B"/>
+            <circle r="20" fill="#fff"/>
+            <circle r="9" fill="#C23A6B"/>
+          </g>
+          <path d="M226 70c34-10 70 10 70 46 0 22-18 26-30 20-10-5-18 2-16 14 2 14-14 20-28 14-30-12-40-80 4-94z" fill="#fff" stroke="#B8631A" stroke-width="3"/>
+          <circle cx="248" cy="92" r="9" fill="#E03131"/><circle cx="274" cy="96" r="9" fill="#FFD43B"/><circle cx="282" cy="120" r="8" fill="#4DABF7"/><circle cx="240" cy="120" r="9" fill="#12B886"/><circle cx="236" cy="148" r="7" fill="#7446C7"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Spalvinimo knyga</h2>
+        <p class="desc" title="Pasirink spalvą ir spalvink raštą.">Pasirink spalvą ir spalvink raštą.</p>
+        <p class="meta">🎨 Spalvos <span class="sep">·</span> 🖱 Pelė <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://game-game.lt/275167/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 15. Draw2Life -->
+    <!-- PASTABA: pradėti gali tik mokytojas, susikūręs paskyrą (nemokamas planas). Reikia spausdintuvo ir telefono. Mokiniams registruotis nereikia. -->
+    <article class="item" data-cat="kuryba it" data-main="kuryba" data-level="3">
+      <div class="thumb">
+        <img class="cover" src="images/15-draw2life.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g transform="rotate(-6 70 140)"><rect x="24" y="92" width="96" height="112" rx="6" fill="#fff"/><path d="M44 146c12-18 36-18 50 0-14 18-38 18-50 0z" fill="#FF922B" stroke="#1C1B2E" stroke-width="2"/><path d="M94 146l14-10v20z" fill="#FF922B" stroke="#1C1B2E" stroke-width="2"/><circle cx="56" cy="142" r="3" fill="#1C1B2E"/></g>
+          <rect x="136" y="96" width="56" height="100" rx="12" fill="#1C2B3A"/><rect x="142" y="106" width="44" height="78" rx="4" fill="#B5E0F3"/>
+          <path d="M142 130h44" stroke="#17709A" stroke-width="2" stroke-dasharray="4 4"/>
+          <rect x="200" y="30" width="104" height="72" rx="8" fill="#17709A"/><rect x="206" y="36" width="92" height="60" rx="4" fill="#D0EBFF"/>
+          <g class="pop"><path d="M226 66c10-14 30-14 40 0-10 14-30 14-40 0z" fill="#FF922B" stroke="#1C1B2E" stroke-width="2"/><path d="M266 66l12-8v16z" fill="#FF922B" stroke="#1C1B2E" stroke-width="2"/><circle cx="236" cy="63" r="2.5" fill="#1C1B2E"/><path d="M214 58h-6M216 72h-8" stroke="#17709A" stroke-width="2" stroke-linecap="round"/></g>
+          <path d="M190 110c10-20 16-30 24-36" stroke="#17709A" stroke-width="3" fill="none" stroke-dasharray="3 6" stroke-linecap="round"/>
+          <circle cx="280" cy="84" r="4" fill="#fff" opacity=".8"/><circle cx="286" cy="76" r="2.5" fill="#fff" opacity=".8"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Draw2Life</h2>
+        <p class="desc" title="Nuspalvink, nufotografuok ir pamatyk piešinį ekrane.">Nuspalvink, nufotografuok ir pamatyk piešinį ekrane.</p>
+        <p class="meta">🎨 Kūryba <span class="sep">·</span> 📱 Telefonas <span class="sep">·</span> <span class="lvl"><b>●●●</b> Stipresniems</span> <span class="flag" title="Veikla anglų kalba">EN</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr">👤 Pradeda mokytojas anglų kalba gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://draw2life.com/#seasonal" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 16. Chrome Music Lab -->
+    <article class="item" data-cat="muzika" data-main="muzika" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/16-music-lab.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <path class="pop" d="M20 50 C40 20,60 80,80 50 S120 20,140 50 S180 80,200 50 S240 20,260 50 S290 70,300 50" stroke="#5646C9" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <g transform="translate(40 86)">
+            <rect width="240" height="110" rx="10" fill="#fff"/>
+            <g fill="#EDEBFA">
+              <rect x="8" y="8" width="24" height="18" rx="4"/><rect x="36" y="8" width="24" height="18" rx="4"/><rect x="64" y="8" width="24" height="18" rx="4"/><rect x="92" y="8" width="24" height="18" rx="4"/><rect x="120" y="8" width="24" height="18" rx="4"/><rect x="148" y="8" width="24" height="18" rx="4"/><rect x="176" y="8" width="24" height="18" rx="4"/><rect x="204" y="8" width="24" height="18" rx="4"/>
+              <rect x="8" y="30" width="24" height="18" rx="4"/><rect x="36" y="30" width="24" height="18" rx="4"/><rect x="64" y="30" width="24" height="18" rx="4"/><rect x="92" y="30" width="24" height="18" rx="4"/><rect x="120" y="30" width="24" height="18" rx="4"/><rect x="148" y="30" width="24" height="18" rx="4"/><rect x="176" y="30" width="24" height="18" rx="4"/><rect x="204" y="30" width="24" height="18" rx="4"/>
+              <rect x="8" y="52" width="24" height="18" rx="4"/><rect x="36" y="52" width="24" height="18" rx="4"/><rect x="64" y="52" width="24" height="18" rx="4"/><rect x="92" y="52" width="24" height="18" rx="4"/><rect x="120" y="52" width="24" height="18" rx="4"/><rect x="148" y="52" width="24" height="18" rx="4"/><rect x="176" y="52" width="24" height="18" rx="4"/><rect x="204" y="52" width="24" height="18" rx="4"/>
+              <rect x="8" y="80" width="24" height="22" rx="11"/><rect x="36" y="80" width="24" height="22" rx="11"/><rect x="64" y="80" width="24" height="22" rx="11"/><rect x="92" y="80" width="24" height="22" rx="11"/><rect x="120" y="80" width="24" height="22" rx="11"/><rect x="148" y="80" width="24" height="22" rx="11"/><rect x="176" y="80" width="24" height="22" rx="11"/><rect x="204" y="80" width="24" height="22" rx="11"/>
+            </g>
+            <rect x="8" y="52" width="24" height="18" rx="4" fill="#F06595"/><rect x="36" y="30" width="24" height="18" rx="4" fill="#FF922B"/><rect x="64" y="8" width="24" height="18" rx="4" fill="#FFD43B"/><rect x="92" y="30" width="24" height="18" rx="4" fill="#51CF66"/>
+            <rect x="120" y="52" width="24" height="18" rx="4" fill="#F06595"/><rect x="148" y="8" width="24" height="18" rx="4" fill="#FFD43B"/><rect x="176" y="30" width="24" height="18" rx="4" fill="#4DABF7"/><rect x="204" y="52" width="24" height="18" rx="4" fill="#7446C7"/>
+            <rect x="8" y="80" width="24" height="22" rx="11" fill="#5646C9"/><rect x="64" y="80" width="24" height="22" rx="11" fill="#5646C9"/><rect x="120" y="80" width="24" height="22" rx="11" fill="#5646C9"/><rect x="176" y="80" width="24" height="22" rx="11" fill="#5646C9"/>
+          </g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Chrome Music Lab</h2>
+        <p class="desc" title="Kurk melodiją spausdamas langelius.">Kurk melodiją spausdamas langelius.</p>
+        <p class="meta">🎵 Muzika <span class="sep">·</span> 🎨 Kūryba <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://musiclab.chromeexperiments.com/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 17. Blob Opera -->
+    <article class="item" data-cat="muzika di" data-main="muzika" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/17-blob-opera.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect x="0" y="178" width="320" height="42" fill="#5646C9" opacity=".25"/>
+          <path d="M28 180c0-40 16-64 30-64s30 24 30 64z" fill="#E03131"/><circle cx="50" cy="140" r="4" fill="#1C1B2E"/><circle cx="66" cy="140" r="4" fill="#1C1B2E"/><ellipse cx="58" cy="156" rx="6" ry="8" fill="#1C1B2E"/>
+          <g class="pop"><path d="M96 180c0-60 20-92 38-92s38 32 38 92z" fill="#2F9E44"/><circle cx="124" cy="120" r="4.5" fill="#1C1B2E"/><circle cx="144" cy="120" r="4.5" fill="#1C1B2E"/><ellipse cx="134" cy="140" rx="8" ry="11" fill="#1C1B2E"/></g>
+          <path d="M180 180c0-52 18-80 34-80s34 28 34 80z" fill="#1971C2"/><circle cx="206" cy="128" r="4" fill="#1C1B2E"/><circle cx="222" cy="128" r="4" fill="#1C1B2E"/><ellipse cx="214" cy="146" rx="6" ry="8" fill="#1C1B2E"/>
+          <path d="M256 180c0-34 12-52 24-52s24 18 24 52z" fill="#FAB005"/><circle cx="274" cy="150" r="3.5" fill="#1C1B2E"/><circle cx="286" cy="150" r="3.5" fill="#1C1B2E"/><ellipse cx="280" cy="164" rx="4" ry="6" fill="#1C1B2E"/>
+          <g fill="#5646C9"><circle cx="190" cy="56" r="7"/><path d="M196 56V26l18-6v28" stroke="#5646C9" stroke-width="4" fill="none"/><circle cx="208" cy="48" r="7"/><circle cx="80" cy="70" r="6"/><path d="M85 70V46" stroke="#5646C9" stroke-width="4"/></g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Blob Opera</h2>
+        <p class="desc" title="Tempk dainininkus ir kurk dainą.">Tempk dainininkus ir kurk dainą.</p>
+        <p class="meta">🎵 Muzika <span class="sep">·</span> 🤖 DI <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://artsandculture.google.com/experiment/AAHWrq360NcGbw" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 18. Žaislų dėžė -->
+    <!-- PATIKRINTI APRAŠYMĄ: svetainė neleidžia automatinės peržiūros. Turinys ir kategorija nenustatyti. -->
+    <article class="item" data-cat="" data-main="" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/18-zaislu-deze.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g class="pop">
+            <g transform="rotate(-14 110 70)"><rect x="86" y="46" width="48" height="48" rx="10" fill="#fff" stroke="#4F5B6E" stroke-width="3"/><circle cx="100" cy="60" r="4.5" fill="#4F5B6E"/><circle cx="120" cy="80" r="4.5" fill="#4F5B6E"/><circle cx="110" cy="70" r="4.5" fill="#4F5B6E"/></g>
+            <path d="M150 40h18a9 9 0 1 1 16 0h18v18a9 9 0 1 1 0 16v18h-52z" fill="#12B886"/>
+            <g transform="rotate(12 238 66)"><rect x="210" y="50" width="58" height="34" rx="17" fill="#7446C7"/><circle cx="252" cy="62" r="4" fill="#fff"/><circle cx="258" cy="72" r="4" fill="#fff"/><path d="M222 67h14M229 60v14" stroke="#fff" stroke-width="4" stroke-linecap="round"/></g>
+          </g>
+          <path d="M70 118h180l-14 84H84z" fill="#FF922B"/>
+          <path d="M70 118l-22-22h86l12 22zM250 118l22-22h-86l-12 22z" fill="#FFC078"/>
+          <rect x="120" y="140" width="80" height="16" rx="8" fill="#fff" opacity=".6"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Žaislų dėžė</h2>
+        <p class="desc" title="Lietuviška žaidimų svetainė.">Lietuviška žaidimų svetainė.</p>
+        <p class="meta">🗂 Rinkinys <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://zaisludeze.lt/zaisk/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 19. Vaikų kampelis. Žaidimai -->
+    <!-- PATIKRINTI APRAŠYMĄ: svetainė neleidžia automatinės peržiūros. Kategorija nustatyta tik pagal svetainės nuorodų struktūrą. -->
+    <article class="item" data-cat="logika" data-main="logika" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/19-vaiku-kampelis.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g class="pop"><path d="M60 60h30a14 14 0 1 1 26 0h30v30a14 14 0 1 1 0 26v30h-86z" fill="#1B7A5E"/></g>
+          <path d="M150 128a14 14 0 1 0 0 26" fill="#1B7A5E"/>
+          <path d="M226 40l36 62h-72z" fill="#FF922B"/>
+          <circle cx="240" cy="152" r="30" fill="#4DABF7"/>
+          <rect x="160" y="138" width="46" height="46" rx="8" fill="#FFD43B" transform="rotate(15 183 161)"/>
+          <g transform="rotate(-10 60 170)"><rect x="30" y="160" width="46" height="50" rx="8" fill="#fff" stroke="#1B7A5E" stroke-width="3"/><text x="53" y="194" font-size="22" fill="#1B7A5E" text-anchor="middle">?</text></g>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Vaikų kampelis. Žaidimai</h2>
+        <p class="desc" title="Pasirink žaidimą iš sąrašo.">Pasirink žaidimą iš sąrašo.</p>
+        <p class="meta">🗂 Rinkinys <span class="sep">·</span> 🧩 Logika <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr"> gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://vaikukampelis.lt/zaidimai/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 20. Išmanieji robotai – interaktyvios užduotys -->
+    <!-- PATIKRINTI: puslapis yra 240 mokymo objektų sąrašas 1–4 klasėms (filmukai, pateiktys, pratimai, testai, užduočių lapai). Ar reikia prisijungti – nepatikrinta. Svetainė nepritaikyta telefonams. -->
+    <article class="item" data-cat="logika kalba it" data-main="logika" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/20-ismanieji-robotai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g class="pop">
+            <path d="M92 44v-14" stroke="#1C1B2E" stroke-width="4"/><circle cx="92" cy="26" r="6" fill="#FF922B"/>
+            <rect x="56" y="44" width="72" height="56" rx="16" fill="#1B7A5E"/>
+            <rect x="66" y="56" width="52" height="30" rx="10" fill="#D3F1E6"/>
+            <circle cx="80" cy="71" r="6" fill="#1C1B2E"/><circle cx="104" cy="71" r="6" fill="#1C1B2E"/>
+            <rect x="62" y="106" width="60" height="62" rx="14" fill="#1B7A5E"/>
+            <circle cx="92" cy="130" r="9" fill="#FFD43B"/>
+            <rect x="44" y="112" width="14" height="40" rx="7" fill="#146B52"/><rect x="126" y="112" width="14" height="40" rx="7" fill="#146B52" transform="rotate(-35 133 116)"/>
+            <rect x="70" y="168" width="16" height="24" rx="6" fill="#146B52"/><rect x="98" y="168" width="16" height="24" rx="6" fill="#146B52"/>
+          </g>
+          <rect x="170" y="40" width="120" height="140" rx="14" fill="#fff"/>
+          <rect x="182" y="52" width="44" height="40" rx="8" fill="#3B5BDB"/><text x="204" y="80" font-size="22" fill="#fff" text-anchor="middle">A</text>
+          <rect x="234" y="52" width="44" height="40" rx="8" fill="#E3E0EE"/>
+          <path d="M256 60l13 24h-26z" fill="#FF922B" opacity=".5"/>
+          <rect x="182" y="100" width="44" height="40" rx="8" fill="#E3E0EE"/><circle cx="204" cy="120" r="11" fill="#4DABF7" opacity=".5"/>
+          <rect x="234" y="100" width="44" height="40" rx="8" fill="#12B886"/><path d="M246 120l8 8 14-16" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="182" y="150" width="96" height="20" rx="10" fill="#D3F1E6"/><rect x="182" y="150" width="62" height="20" rx="10" fill="#1B7A5E"/>
+          <g transform="rotate(14 150 110)"><path d="M140 90h22l-11 20z" fill="#FF922B"/></g>
+          <path d="M138 70c10-8 22-12 30-10" stroke="#1B7A5E" stroke-width="3" fill="none" stroke-dasharray="4 6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="info">
+        <h2>Išmanieji robotai – interaktyvios užduotys</h2>
+        <p class="desc" title="Atpažink, sudėliok, sugrupuok arba pasirink teisingą atsakymą.">Atpažink, sudėliok, sugrupuok arba pasirink teisingą atsakymą.</p>
+        <p class="meta">🧩 Logika <span class="sep">·</span> 🔤 Kalba <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Gali reikėti paskyros">🔑</span><span class="sr">🧠 Dėmesys 🖱 Pelė gali reikėti paskyros</span></p>
+      </div>
+      <a class="play" href="https://ismaniejirobotai.ugdome.lt/index.php?mod=13" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 21. Gyvūnų spalvos -->
+    <!-- PASTABA: Lietuvių kalbos instituto žaidimas. Jei nėra garso, reikia paliesti žaidimo langą. Žodžiai reti (bėras, deglas, keršas). -->
+    <article class="item" data-cat="kalba" data-main="kalba" data-level="3">
+      <div class="thumb">
+        <img class="cover" src="images/21-gyvunu-spalvos.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="#7A4A1E"><ellipse cx="110" cy="132" rx="40" ry="34"/><ellipse cx="66" cy="84" rx="15" ry="20"/><ellipse cx="96" cy="62" rx="15" ry="20"/><ellipse cx="130" cy="62" rx="15" ry="20"/><ellipse cx="158" cy="86" rx="15" ry="20"/></g>
+<g class="pop"><rect x="186" y="44" width="110" height="34" rx="17" fill="#fff"/><circle cx="206" cy="61" r="10" fill="#8B4513"/><text x="250" y="68" font-size="17" fill="#1C1B2E" text-anchor="middle">bėras</text></g>
+<rect x="186" y="92" width="110" height="34" rx="17" fill="#fff"/><circle cx="206" cy="109" r="10" fill="#1C1B2E"/><circle cx="206" cy="109" r="5" fill="#fff"/><text x="252" y="116" font-size="17" fill="#1C1B2E" text-anchor="middle">keršas</text>
+<rect x="186" y="140" width="110" height="34" rx="17" fill="#fff"/><circle cx="206" cy="157" r="10" fill="#C9A26B"/><text x="250" y="164" font-size="17" fill="#1C1B2E" text-anchor="middle">deglas</text></svg>
+      </div>
+      <div class="info">
+        <h2>Gyvūnų spalvos</h2>
+        <p class="desc" title="Pagal nuotrauką parink žodį gyvūno spalvai.">Pagal nuotrauką parink žodį gyvūno spalvai.</p>
+        <p class="meta">🔤 Žodžiai <span class="sep">·</span> 🐾 Gyvūnai <span class="sep">·</span> <span class="lvl"><b>●●●</b> Stipresniems</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://zaidimai.lki.lt/gyvunu-spalvos/zaisti/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 22. Saugumas internete -->
+    <!-- PASTABA: Wordwall viktorina (7–9 kl.): slaptažodžiai, fišingas, viešas Wi-Fi, https. Klausimai ilgoki. -->
+    <article class="item" data-cat="saugumas" data-main="saugumas" data-level="3">
+      <div class="thumb">
+        <img class="cover" src="images/22-saugumas-internete.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect x="40" y="36" width="200" height="140" rx="14" fill="#fff"/><rect x="40" y="36" width="200" height="30" rx="14" fill="#E9ECEF"/><rect x="40" y="52" width="200" height="14" fill="#E9ECEF"/>
+<circle cx="58" cy="51" r="5" fill="#FA5252"/><circle cx="74" cy="51" r="5" fill="#FAB005"/><circle cx="90" cy="51" r="5" fill="#40C057"/>
+<rect x="56" y="78" width="168" height="24" rx="12" fill="#F1F3F5"/><rect x="64" y="84" width="10" height="9" rx="2" fill="#2B8A3E"/><path d="M66 84v-3a3 3 0 0 1 6 0v3" stroke="#2B8A3E" stroke-width="2" fill="none"/><text x="82" y="95" font-size="13" fill="#2B8A3E">https://</text>
+<path d="M60 120h120M60 136h90M60 152h104" stroke="#DEE2E6" stroke-width="7" stroke-linecap="round"/>
+<g class="pop"><path d="M218 96l40-15 40 15v32c0 30-20 47-40 55-20-8-40-25-40-55z" fill="#C92A2A"/><rect x="244" y="122" width="28" height="24" rx="4" fill="#fff"/><path d="M249 122v-7a9 9 0 0 1 18 0v7" stroke="#fff" stroke-width="4" fill="none"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Saugumas internete</h2>
+        <p class="desc" title="Atsakyk į klausimus apie saugų elgesį internete.">Atsakyk į klausimus apie saugų elgesį internete.</p>
+        <p class="meta">🔐 Saugumas <span class="sep">·</span> 💻 Internetas <span class="sep">·</span> <span class="lvl"><b>●●●</b> Stipresniems</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/86505859/saugumas-internete" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 23. Kelio ženklai -->
+    <!-- PASTABA: Wordwall šablonas „Rasti tinkamą“. Ženklai pėstiesiems: perėjos, stotelė, ligoninė ir kt. -->
+    <article class="item" data-cat="keliai kasdieniai" data-main="keliai" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/23-kelio-zenklai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect x="78" y="120" width="8" height="90" fill="#868E96"/><path d="M82 40l46 80H36z" fill="#fff" stroke="#E03131" stroke-width="9" stroke-linejoin="round"/><text x="82" y="108" font-size="40" fill="#1C1B2E" text-anchor="middle">!</text>
+<g class="pop"><rect x="158" y="120" width="8" height="90" fill="#868E96"/><circle cx="162" cy="86" r="42" fill="#fff" stroke="#E03131" stroke-width="10"/><text x="162" y="100" font-size="38" fill="#1C1B2E" text-anchor="middle">50</text></g>
+<rect x="238" y="120" width="8" height="90" fill="#868E96"/><rect x="204" y="48" width="76" height="76" rx="8" fill="#1971C2"/><path d="M242 58l30 56h-60z" fill="#fff"/><circle cx="242" cy="82" r="6" fill="#1C1B2E"/><path d="M242 88v14l-6 10M242 102l6 10M234 94h16" stroke="#1C1B2E" stroke-width="3" stroke-linecap="round"/></svg>
+      </div>
+      <div class="info">
+        <h2>Kelio ženklai</h2>
+        <p class="desc" title="Rask ir pažymėk tinkamus kelio ženklus.">Rask ir pažymėk tinkamus kelio ženklus.</p>
+        <p class="meta">🚦 Kelio ženklai <span class="sep">·</span> 🚶 Pėstysis <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/1716584/kelio-ženklai" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 24. Dirbtinis intelektas -->
+    <!-- PERŽIŪRĖTI: viktorinoje yra DI sugeneruoto turinio ir dviprasmiškų klausimų (pvz., kai tinka keli atsakymai). -->
+    <article class="item" data-cat="di" data-main="di" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/24-dirbtinis-intelektas.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g class="pop"><rect x="92" y="54" width="112" height="112" rx="20" fill="#2B2238"/>
+<g stroke="#2B2238" stroke-width="6" stroke-linecap="round"><path d="M116 54v-16M148 54v-16M180 54v-16M116 166v16M148 166v16M180 166v16M92 80H76M92 110H76M92 140H76M204 80h16M204 110h16M204 140h16"/></g>
+<rect x="110" y="72" width="76" height="76" rx="12" fill="#AE3EC9"/><text x="148" y="122" font-size="34" fill="#fff" text-anchor="middle">DI</text></g>
+<rect x="226" y="40" width="74" height="42" rx="14" fill="#fff"/><path d="M240 82l-6 12 16-12z" fill="#fff"/><circle cx="248" cy="61" r="5" fill="#AE3EC9"/><circle cx="263" cy="61" r="5" fill="#AE3EC9"/><circle cx="278" cy="61" r="5" fill="#AE3EC9"/>
+<path d="M262 132l5 13 13 5-13 5-5 13-5-13-13-5 13-5z" fill="#FFD43B"/><path d="M44 50l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#FFD43B"/></svg>
+      </div>
+      <div class="info">
+        <h2>Dirbtinis intelektas</h2>
+        <p class="desc" title="Atsakyk į klausimus apie dirbtinį intelektą.">Atsakyk į klausimus apie dirbtinį intelektą.</p>
+        <p class="meta">🤖 DI <span class="sep">·</span> ❓ Viktorina <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/92096807/dirbtinis-intelektas" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 25. Profesijos: atspėk iš paveikslėlio -->
+    <article class="item" data-cat="profesijos" data-main="profesijos" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/25-profesijos-vaizdai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect x="70" y="30" width="180" height="160" rx="14" fill="#fff"/>
+<circle cx="160" cy="132" r="40" fill="#FFC9A8"/><path d="M110 118a50 46 0 0 1 100 0z" fill="#FAB005"/><rect x="102" y="114" width="116" height="12" rx="6" fill="#E67700"/><circle cx="146" cy="138" r="4" fill="#1C1B2E"/><circle cx="174" cy="138" r="4" fill="#1C1B2E"/>
+<g fill="#495057"><rect x="70" y="30" width="60" height="54" rx="0"/><rect x="190" y="30" width="60" height="54"/><rect x="70" y="136" width="60" height="54"/><rect x="190" y="136" width="60" height="54"/><rect x="130" y="83" width="60" height="54" opacity="0"/></g>
+<g fill="#fff" font-size="28" text-anchor="middle"><text x="100" y="68">?</text><text x="220" y="68">?</text><text x="100" y="174">?</text><text x="220" y="174">?</text></g>
+<g class="pop"><circle cx="266" cy="34" r="18" fill="#2B8A3E"/><path d="M257 34l6 6 11-12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Profesijos: atspėk iš paveikslėlio</h2>
+        <p class="desc" title="Paveikslėlis atsiveria pamažu. Atspėk profesiją.">Paveikslėlis atsiveria pamažu. Atspėk profesiją.</p>
+        <p class="meta">🧰 Profesijos <span class="sep">·</span> 👁 Atidumas <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/38442932/profesijos" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 26. Ugdymas karjerai -->
+    <!-- PERŽIŪRĖTI: klausimai rašyti didžiosiomis raidėmis, yra rašybos klaidų ir abejotinų klausimų. -->
+    <article class="item" data-cat="profesijos" data-main="profesijos" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/26-ugdymas-karjerai.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="#495057"><rect x="40" y="168" width="60" height="20" rx="4"/><rect x="96" y="138" width="60" height="50" rx="4"/><rect x="152" y="108" width="60" height="80" rx="4"/><rect x="208" y="78" width="60" height="110" rx="4"/></g>
+<g fill="#fff" opacity=".85" font-size="16" text-anchor="middle"><text x="70" y="183">1</text><text x="126" y="168">2</text><text x="182" y="138">3</text><text x="238" y="108">4</text></g>
+<g class="pop"><path d="M238 78V30" stroke="#1C1B2E" stroke-width="4"/><path d="M240 30h40l-10 12 10 12h-40z" fill="#E03131"/></g>
+<g transform="translate(44 96)"><rect width="56" height="42" rx="7" fill="#7A5230"/><path d="M18 0v-8h20v8" stroke="#7A5230" stroke-width="5" fill="none"/><rect y="16" width="56" height="5" fill="#5C3D1E"/><rect x="24" y="12" width="8" height="12" rx="2" fill="#FAB005"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Ugdymas karjerai</h2>
+        <p class="desc" title="Atsakyk į klausimus apie profesijas ir darbą.">Atsakyk į klausimus apie profesijas ir darbą.</p>
+        <p class="meta">🧰 Profesijos <span class="sep">·</span> 💼 Darbas <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/90100491/ugdymas-karjerai" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 27. Profesijos: viktorina -->
+    <!-- PERŽIŪRĖTI: atsakymuose yra rašybos klaidų (pvz., „MECHANIMAS“). -->
+    <article class="item" data-cat="profesijos" data-main="profesijos" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/27-profesijos-viktorina.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g transform="rotate(-30 90 110)"><rect x="80" y="70" width="18" height="100" rx="8" fill="#868E96"/><circle cx="89" cy="64" r="26" fill="#868E96"/><rect x="80" y="36" width="18" height="26" fill="#E7F5FF"/></g>
+<g class="pop"><path d="M134 120h56v40h-56z" fill="#fff" stroke="#ADB5BD" stroke-width="3"/><circle cx="142" cy="104" r="20" fill="#fff" stroke="#ADB5BD" stroke-width="3"/><circle cx="162" cy="92" r="24" fill="#fff" stroke="#ADB5BD" stroke-width="3"/><circle cx="184" cy="104" r="20" fill="#fff" stroke="#ADB5BD" stroke-width="3"/><rect x="136" y="110" width="52" height="14" fill="#fff"/></g>
+<g transform="rotate(25 250 110)"><rect x="243" y="78" width="14" height="90" rx="5" fill="#C2255C"/><rect x="241" y="66" width="18" height="14" fill="#ADB5BD"/><path d="M241 66c0-22 18-22 18 0z" fill="#1C7ED6"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Profesijos: viktorina</h2>
+        <p class="desc" title="Atpažink profesiją ir pasirink atsakymą.">Atpažink profesiją ir pasirink atsakymą.</p>
+        <p class="meta">🧰 Profesijos <span class="sep">·</span> ❓ Viktorina <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/10923079/profesijos" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 28. Profesijos: rask tinkamą -->
+    <article class="item" data-cat="profesijos" data-main="profesijos" data-level="1">
+      <div class="thumb">
+        <img class="cover" src="images/28-profesijos-rask.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g transform="rotate(-6 80 110)"><rect x="40" y="60" width="78" height="100" rx="10" fill="#fff"/><circle cx="79" cy="96" r="18" fill="#FFD8A8"/><rect x="58" y="124" width="42" height="8" rx="4" fill="#DEE2E6"/><rect x="64" y="138" width="30" height="8" rx="4" fill="#DEE2E6"/><path d="M61 90a18 14 0 0 1 36 0z" fill="#E03131"/></g>
+<g class="pop"><rect x="121" y="46" width="78" height="110" rx="10" fill="#fff" stroke="#2B8A3E" stroke-width="4"/><circle cx="160" cy="86" r="18" fill="#FFD8A8"/><path d="M142 80a18 14 0 0 1 36 0z" fill="#FAB005"/><rect x="139" y="114" width="42" height="8" rx="4" fill="#DEE2E6"/><rect x="145" y="128" width="30" height="8" rx="4" fill="#DEE2E6"/><circle cx="196" cy="50" r="15" fill="#2B8A3E"/><path d="M189 50l5 5 9-10" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></g>
+<g transform="rotate(6 240 110)"><rect x="202" y="60" width="78" height="100" rx="10" fill="#fff"/><circle cx="241" cy="96" r="18" fill="#FFD8A8"/><path d="M223 90a18 14 0 0 1 36 0z" fill="#1C7ED6"/><rect x="220" y="124" width="42" height="8" rx="4" fill="#DEE2E6"/><rect x="226" y="138" width="30" height="8" rx="4" fill="#DEE2E6"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Profesijos: rask tinkamą</h2>
+        <p class="desc" title="Rask ir pažymėk nurodytas profesijas.">Rask ir pažymėk nurodytas profesijas.</p>
+        <p class="meta">🧰 Profesijos <span class="sep">·</span> 👁 Atidumas <span class="sep">·</span> <span class="lvl"><b>●</b> Lengva</span><span class="sr"></span></p>
+      </div>
+      <a class="play" href="https://wordwall.net/lt/resource/10757653/profesijos" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+    <!-- 29. Rask skirtumus -->
+    <!-- PASTABA: iPlayer žaidimų portalas su reklama ir nuorodomis į kitus žaidimus (šaudymo, zombių). Žaidimo pavadinimas angliškas. -->
+    <article class="item" data-cat="logika" data-main="logika" data-level="2">
+      <div class="thumb">
+        <img class="cover" src="images/29-rask-skirtumus.webp" alt="" loading="lazy" onerror="this.remove()">
+        <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect x="24" y="44" width="130" height="130" rx="10" fill="#fff"/><rect x="166" y="44" width="130" height="130" rx="10" fill="#fff"/>
+<g id="scene"><rect x="44" y="104" width="56" height="50" fill="#FFA94D"/><path d="M38 108l34-30 34 30z" fill="#C92A2A"/><rect x="64" y="126" width="16" height="28" fill="#7A4A1E"/><circle cx="124" cy="110" r="18" fill="#40C057"/><rect x="121" y="126" width="6" height="28" fill="#7A4A1E"/><circle cx="130" cy="64" r="10" fill="#FAB005"/></g>
+<rect x="186" y="104" width="56" height="50" fill="#FFA94D"/><path d="M180 108l34-30 34 30z" fill="#1971C2"/><rect x="206" y="126" width="16" height="28" fill="#7A4A1E"/><circle cx="266" cy="110" r="18" fill="#40C057"/><rect x="263" y="126" width="6" height="28" fill="#7A4A1E"/><circle cx="272" cy="64" r="10" fill="#FAB005"/>
+<g class="pop"><circle cx="214" cy="94" r="24" fill="none" stroke="#E03131" stroke-width="4"/></g></svg>
+      </div>
+      <div class="info">
+        <h2>Rask skirtumus</h2>
+        <p class="desc" title="Palygink du paveikslėlius ir rask skirtumus.">Palygink du paveikslėlius ir rask skirtumus.</p>
+        <p class="meta">👁 Dėmesys <span class="sep">·</span> 🧩 Logika <span class="sep">·</span> <span class="lvl"><b>●●</b> Vidutinė</span> <span class="flag" title="Veikla anglų kalba">EN</span><span class="sr"> anglų kalba</span></p>
+      </div>
+      <a class="play" href="https://lt.iplayer.org/222798/" target="_blank" rel="noopener noreferrer">ŽAISTI <span class="arrow">›</span><span class="sr"> (atsidaro naujame skirtuke)</span></a>
+    </article>
+
+  </div>
+
+  <div class="empty" id="empty">
+    Nieko nerasta.<br>Pakeisk temą, lygį arba paieškos žodį.
+    <br><button type="button" id="reset">Rodyti visas veiklas</button>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Visos veiklos atsidaro naujame skirtuke. Baigęs uždaryk skirtuką ir grįžk čia.</div>
+</footer>
+
+<script>
+  (function () {
+    var LABELS = {
+      logika: "Atmintis ir logika",
+      kalba: "Kalba raides zodziai",
+      it: "IT ir skaitmeninis pasaulis kompiuteris",
+      saugumas: "Saugumas internete",
+      di: "Dirbtinis intelektas DI AI",
+      kasdieniai: "Kasdieniai įgūdžiai",
+      keliai: "Kelio ženklai eismas",
+      profesijos: "Profesijos ir karjera darbas",
+      kuryba: "Kūryba piešimas",
+      muzika: "Muzika"
+    };
+
+    // Paieška veikia ir be lietuviškų raidžių: „zenklai“ = „ženklai“
+    function norm(s) { return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+
+    var items = Array.prototype.slice.call(document.querySelectorAll(".item"));
+    var catBtns = Array.prototype.slice.call(document.querySelectorAll("#cats button"));
+    var lvlBtns = Array.prototype.slice.call(document.querySelectorAll("#levels button"));
+    var input = document.getElementById("q");
+    var status = document.getElementById("status");
+    var empty = document.getElementById("empty");
+    var cat = "visos", level = "visi";
+
+    items.forEach(function (el) {
+      var cats = (el.dataset.cat || "").split(/\s+/).filter(Boolean);
+      el._cats = cats;
+      el._text = norm(el.querySelector(".info").textContent + " " + cats.map(function (c) { return LABELS[c] || ""; }).join(" "));
+    });
+
+    function update(animate) {
+      var q = norm(input.value.trim()), shown = 0;
+      items.forEach(function (el) {
+        var ok = (cat === "visos" || el._cats.indexOf(cat) !== -1) &&
+                 (level === "visi" || el.dataset.level === level) &&
+                 (!q || el._text.indexOf(q) !== -1);
+        el.hidden = !ok;
+        if (ok && animate) {
+          el.classList.remove("in"); void el.offsetWidth;
+          el.style.setProperty("--d", Math.min(shown * 30, 300) + "ms");
+          el.classList.add("in");
+        }
+        if (ok) shown++;
+      });
+      empty.style.display = shown ? "none" : "block";
+      status.textContent = shown + " iš " + items.length + " veiklų";
+    }
+
+    function setPressed(list, btn) { list.forEach(function (b) { b.setAttribute("aria-pressed", b === btn ? "true" : "false"); }); }
+
+    catBtns.forEach(function (b) { b.addEventListener("click", function () { cat = b.dataset.cat; setPressed(catBtns, b); update(true); }); });
+    lvlBtns.forEach(function (b) { b.addEventListener("click", function () { level = b.dataset.level; setPressed(lvlBtns, b); update(true); }); });
+    input.addEventListener("input", function () { update(false); });
+
+    document.getElementById("reset").addEventListener("click", function () {
+      input.value = ""; cat = "visos"; level = "visi";
+      setPressed(catBtns, catBtns[0]); setPressed(lvlBtns, lvlBtns[0]);
+      update(true); input.focus();
+    });
+
+    update(true);
+  })();
+</script>
+</body>
+</html>
